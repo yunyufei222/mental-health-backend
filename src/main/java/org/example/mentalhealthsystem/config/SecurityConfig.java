@@ -33,10 +33,15 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+
         http
-                .csrf().disable()
+                .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+                        // 公开接口：注册和登录
                         .requestMatchers("/api/user/register", "/api/user/login").permitAll()
+                        // 管理员接口需要 ADMIN 角色
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        // 其他所有请求都需要认证（注意：这一行必须放在最后）
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
@@ -44,7 +49,6 @@ public class SecurityConfig {
                 );
 
         http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
-
         return http.build();
     }
 }
