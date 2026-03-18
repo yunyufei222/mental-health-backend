@@ -10,6 +10,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class ArticleService {
@@ -25,6 +28,9 @@ public class ArticleService {
 
     @Autowired
     private ArticleFavoriteRepository favoriteRepository;
+
+    @Autowired
+    private TagRepository tagRepository;
 
     // ----- 分类管理 -----
     public ArticleCategory createCategory(ArticleCategory category) {
@@ -47,6 +53,20 @@ public class ArticleService {
     public Article createArticle(ArticleCreateRequest request) {
         Article article = new Article();
         updateArticleFromRequest(article, request);
+        // 处理标签
+        if (request.getTags() != null) {
+            Set<Tag> tags = new HashSet<>();
+            for (String tagName : request.getTags()) {
+                Tag tag = tagRepository.findByName(tagName)
+                        .orElseGet(() -> {
+                            Tag newTag = new Tag();
+                            newTag.setName(tagName);
+                            return tagRepository.save(newTag);
+                        });
+                tags.add(tag);
+            }
+            article.setTags(tags);
+        }
         if (article.getStatus() == 1) { // 发布时设置发布时间
             article.setPublishedAt(LocalDateTime.now());
         }
@@ -58,6 +78,20 @@ public class ArticleService {
         Article article = articleRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("文章不存在"));
         updateArticleFromRequest(article, request);
+        // 更新标签
+        Set<Tag> tags = new HashSet<>();
+        if (request.getTags() != null) {
+            for (String tagName : request.getTags()) {
+                Tag tag = tagRepository.findByName(tagName)
+                        .orElseGet(() -> {
+                            Tag newTag = new Tag();
+                            newTag.setName(tagName);
+                            return tagRepository.save(newTag);
+                        });
+                tags.add(tag);
+            }
+        }
+        article.setTags(tags);
         if (article.getStatus() == 1 && article.getPublishedAt() == null) {
             article.setPublishedAt(LocalDateTime.now());
         }
@@ -86,8 +120,8 @@ public class ArticleService {
 
     // ----- 用户端接口 -----
     @Transactional(readOnly = true)
-    public Page<ArticleDTO> getPublishedArticles(Long categoryId, String keyword, Pageable pageable, Long currentUserId) {
-        Page<Article> page = articleRepository.findPublishedArticles(categoryId, keyword, pageable);
+    public Page<ArticleDTO> getPublishedArticles(Long categoryId, Long tagId, String keyword, Pageable pageable, Long currentUserId) {
+        Page<Article> page = articleRepository.findPublishedArticles(categoryId, tagId, keyword, pageable);
         return page.map(article -> convertToDTO(article, currentUserId));
     }
 
@@ -106,20 +140,20 @@ public class ArticleService {
     public boolean toggleLike(Long articleId, Long userId) {
         Article article = articleRepository.findById(articleId)
                 .orElseThrow(() -> new RuntimeException("文章不存在"));
-        User user = new User(); // 假设只需要id，可先设置id
+        User user = new User();
         user.setId(userId);
 
         if (likeRepository.existsByArticleAndUser(article, user)) {
             likeRepository.deleteByArticleIdAndUserId(articleId, userId);
             article.setLikeCount(article.getLikeCount() - 1);
-            return false; // 取消点赞
+            return false;
         } else {
             ArticleLike like = new ArticleLike();
             like.setArticle(article);
             like.setUser(user);
             likeRepository.save(like);
             article.setLikeCount(article.getLikeCount() + 1);
-            return true; // 点赞成功
+            return true;
         }
     }
 
@@ -159,6 +193,7 @@ public class ArticleService {
         dto.setFavoriteCount(article.getFavoriteCount());
         dto.setIsTop(article.getIsTop());
         dto.setPublishedAt(article.getPublishedAt());
+        dto.setTags(article.getTags().stream().map(Tag::getName).collect(Collectors.toSet()));
 
         if (currentUserId != null) {
             Article articleProxy = new Article();
@@ -186,6 +221,7 @@ public class ArticleService {
         dto.setFavoriteCount(article.getFavoriteCount());
         dto.setIsTop(article.getIsTop());
         dto.setPublishedAt(article.getPublishedAt());
+        dto.setTags(article.getTags().stream().map(Tag::getName).collect(Collectors.toSet()));
 
         if (currentUserId != null) {
             Article articleProxy = new Article();

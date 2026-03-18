@@ -4,6 +4,7 @@ import org.example.mentalhealthsystem.dto.ArticleDTO;
 import org.example.mentalhealthsystem.dto.ArticleDetailDTO;
 import org.example.mentalhealthsystem.entity.User;
 import org.example.mentalhealthsystem.service.ArticleService;
+import org.example.mentalhealthsystem.service.UserArticleReadService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -24,27 +25,34 @@ public class ArticleController {
     @Autowired
     private ArticleService articleService;
 
-    // 获取已发布的文章列表（支持分类筛选、关键词搜索）
+    @Autowired
+    private UserArticleReadService readService;
+
+    // 获取已发布的文章列表（支持分类、标签、关键词搜索）
     @GetMapping
     public ResponseEntity<Page<ArticleDTO>> getArticles(
             @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Long tagId,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal User currentUser) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("isTop").descending().and(Sort.by("publishedAt").descending()));
         Long userId = currentUser != null ? currentUser.getId() : null;
-        Page<ArticleDTO> articles = articleService.getPublishedArticles(categoryId, keyword, pageable, userId);
+        Page<ArticleDTO> articles = articleService.getPublishedArticles(categoryId, tagId, keyword, pageable, userId);
         return ResponseEntity.ok(articles);
     }
 
-    // 获取文章详情
+    // 获取文章详情（并记录阅读历史）
     @GetMapping("/{id}")
     public ResponseEntity<ArticleDetailDTO> getArticleDetail(
             @PathVariable Long id,
             @AuthenticationPrincipal User currentUser) {
         Long userId = currentUser != null ? currentUser.getId() : null;
         ArticleDetailDTO detail = articleService.getArticleDetail(id, userId);
+        if (userId != null) {
+            readService.recordRead(userId, id);
+        }
         return ResponseEntity.ok(detail);
     }
 

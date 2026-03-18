@@ -4,6 +4,8 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
+import java.util.Set;
+
 @Data
 public class ArticleDetailDTO {
     private Long id;
@@ -21,4 +23,5 @@ public class ArticleDetailDTO {
     private LocalDateTime publishedAt;
     private Boolean likedByCurrentUser;
     private Boolean favoritedByCurrentUser;
+    private Set<String> tags;  // 存放标签名称
 }

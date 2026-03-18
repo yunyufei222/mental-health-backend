@@ -7,6 +7,9 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
+import java.util.Set;
+import java.util.HashSet;
+
 @Data
 @Entity
 @Table(name = "articles")
@@ -18,6 +21,14 @@ public class Article {
     @ManyToOne
     @JoinColumn(name = "category_id")
     private ArticleCategory category;
+
+    @ManyToMany
+    @JoinTable(
+            name = "article_tag",
+            joinColumns = @JoinColumn(name = "article_id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id")
+    )
+    private Set<Tag> tags = new HashSet<>();
 
     @Column(nullable = false, length = 200)
     private String title;
