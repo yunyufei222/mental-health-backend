@@ -27,12 +27,12 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-
-        // 对注册和登录路径直接放行，不进行 token 验证
         String path = request.getServletPath();
-        System.out.println("JwtRequestFilter processing path: " + path);  // 添加日志
-        if (path.equals("/api/user/register") || path.equals("/api/user/login")) {
-            System.out.println("Public path, skipping JWT validation");  // 添加日志
+        System.out.println("JwtRequestFilter processing path: " + path);
+        if (path.startsWith("/api/user/login") ||
+                path.startsWith("/api/user/register") ||
+                path.startsWith("/api/articles") ||        // 添加这一行
+                path.startsWith("/api/scales")) {           // 如果有量表模块也一并放行
             chain.doFilter(request, response);
             return;
         }

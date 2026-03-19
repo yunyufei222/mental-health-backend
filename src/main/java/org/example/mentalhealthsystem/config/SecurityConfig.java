@@ -4,6 +4,7 @@ import org.example.mentalhealthsystem.util.JwtRequestFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -37,11 +38,11 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        // 公开接口：注册和登录
+                        .requestMatchers(HttpMethod.GET, "/api/articles/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/scales/**").permitAll()
                         .requestMatchers("/api/user/register", "/api/user/login").permitAll()
-                        // 管理员接口需要 ADMIN 角色
+                        .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        // 其他所有请求都需要认证（注意：这一行必须放在最后）
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
@@ -49,6 +50,7 @@ public class SecurityConfig {
                 );
 
         http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
 }
