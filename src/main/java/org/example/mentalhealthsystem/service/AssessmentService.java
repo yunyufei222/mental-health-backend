@@ -16,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 public class AssessmentService {
@@ -26,9 +25,6 @@ public class AssessmentService {
 
     @Autowired
     private QuestionRepository questionRepository;
-
-    @Autowired
-    private OptionRepository optionRepository;
 
     @Autowired
     private UserAssessmentRepository assessmentRepository;
@@ -44,13 +40,11 @@ public class AssessmentService {
             throw new RuntimeException("量表已停用");
         }
 
-        // 获取所有题目并按顺序排序
         List<Question> questions = questionRepository.findByScaleIdOrderBySortOrder(scale.getId());
         if (questions.size() != request.getAnswers().size()) {
             throw new RuntimeException("答案数量与题目数量不匹配");
         }
 
-        // 计算总分和各维度得分
         int totalScore = 0;
         Map<String, Integer> dimensionScores = new HashMap<>();
 
@@ -65,10 +59,8 @@ public class AssessmentService {
             }
         }
 
-        // 生成解读（此处简化，实际可根据分数范围生成）
         String interpretation = generateInterpretation(scale, totalScore, dimensionScores);
 
-        // 保存测评记录
         UserAssessment assessment = new UserAssessment();
         assessment.setUser(new User() {{ setId(userId); }});
         assessment.setScale(scale);
@@ -82,7 +74,6 @@ public class AssessmentService {
         assessment.setInterpretation(interpretation);
         assessment = assessmentRepository.save(assessment);
 
-        // 构造返回结果
         AssessmentResultDTO result = new AssessmentResultDTO();
         result.setId(assessment.getId());
         result.setScaleId(scale.getId());
@@ -90,14 +81,24 @@ public class AssessmentService {
         result.setTotalScore(totalScore);
         result.setDimensionScores(dimensionScores);
         result.setInterpretation(interpretation);
+        result.setDetailedInterpretation(interpretation);
         result.setCreatedAt(assessment.getCreatedAt().toString());
         return result;
     }
 
-    // 获取用户测评历史
     public Page<UserAssessmentDTO> getUserAssessmentHistory(Long userId, Pageable pageable) {
         Page<UserAssessment> page = assessmentRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
         return page.map(this::convertToUserDTO);
+    }
+
+    @Transactional(readOnly = true)
+    public AssessmentResultDTO getAssessmentResultById(Long assessmentId, Long userId) {
+        UserAssessment assessment = assessmentRepository.findById(assessmentId)
+                .orElseThrow(() -> new RuntimeException("测评记录不存在"));
+        if (!assessment.getUser().getId().equals(userId)) {
+            throw new RuntimeException("无权查看此记录");
+        }
+        return convertToResultDTO(assessment);
     }
 
     private UserAssessmentDTO convertToUserDTO(UserAssessment assessment) {
@@ -110,9 +111,36 @@ public class AssessmentService {
         return dto;
     }
 
+    private AssessmentResultDTO convertToResultDTO(UserAssessment assessment) {
+        AssessmentResultDTO dto = new AssessmentResultDTO();
+        dto.setId(assessment.getId());
+        dto.setScaleId(assessment.getScale().getId());
+        dto.setScaleName(assessment.getScale().getName());
+        dto.setTotalScore(assessment.getTotalScore());
+        dto.setInterpretation(assessment.getInterpretation());
+        dto.setDetailedInterpretation(assessment.getInterpretation());
+        dto.setCreatedAt(assessment.getCreatedAt().toString());
+        try {
+            if (assessment.getDimensionScores() != null) {
+                Map<String, Integer> dimScores = objectMapper.readValue(assessment.getDimensionScores(), new TypeReference<Map<String, Integer>>() {});
+                dto.setDimensionScores(dimScores);
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return dto;
+    }
+
     private String generateInterpretation(Scale scale, int totalScore, Map<String, Integer> dimScores) {
-        // 这里可以接入规则引擎或固定文本
-        // 简单返回一个示例
+        if (scale.getId() == 1) { // 繁荣量表
+            if (totalScore <= 24) return "您的繁荣感较低，可能需要关注心理状态，尝试积极活动。";
+            else if (totalScore <= 40) return "您的繁荣感中等，可以继续保持，多参与有意义的事情。";
+            else return "您的繁荣感很高，生活充实，请保持！";
+        } else if (scale.getId() == 2) { // VIA量表
+            StringBuilder sb = new StringBuilder("您的品格优势得分：\n");
+            dimScores.forEach((dim, score) -> sb.append(dim).append(": ").append(score).append("\n"));
+            return sb.toString();
+        }
         return "您的总分为 " + totalScore + "。感谢参与测评。";
     }
 }

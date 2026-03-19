@@ -10,7 +10,8 @@ public class AssessmentResultDTO {
     private Long scaleId;
     private String scaleName;
     private Integer totalScore;
-    private Map<String, Integer> dimensionScores; // 维度得分
+    private Map<String, Integer> dimensionScores;
     private String interpretation;
+    private String detailedInterpretation;
     private String createdAt;
 }

@@ -22,7 +22,6 @@ public class AssessmentController {
     @Autowired
     private AssessmentService assessmentService;
 
-    // 提交测评答案
     @PostMapping("/submit")
     public ResponseEntity<AssessmentResultDTO> submitAssessment(
             @RequestBody AssessmentSubmitRequest request,
@@ -34,7 +33,6 @@ public class AssessmentController {
         return ResponseEntity.ok(result);
     }
 
-    // 获取当前用户的测评历史
     @GetMapping("/history")
     public ResponseEntity<Page<UserAssessmentDTO>> getMyHistory(
             @RequestParam(defaultValue = "0") int page,
@@ -46,5 +44,16 @@ public class AssessmentController {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<UserAssessmentDTO> history = assessmentService.getUserAssessmentHistory(currentUser.getId(), pageable);
         return ResponseEntity.ok(history);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<AssessmentResultDTO> getAssessmentResult(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser) {
+        if (currentUser == null) {
+            return ResponseEntity.status(401).build();
+        }
+        AssessmentResultDTO result = assessmentService.getAssessmentResultById(id, currentUser.getId());
+        return ResponseEntity.ok(result);
     }
 }

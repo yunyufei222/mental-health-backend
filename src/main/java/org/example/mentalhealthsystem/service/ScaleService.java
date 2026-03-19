@@ -1,6 +1,5 @@
 package org.example.mentalhealthsystem.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.mentalhealthsystem.dto.*;
 import org.example.mentalhealthsystem.entity.*;
 import org.example.mentalhealthsystem.repository.*;
@@ -10,7 +9,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,10 +26,7 @@ public class ScaleService {
     @Autowired
     private OptionRepository optionRepository;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    // 管理员：创建量表
+    // ---------- 管理员：量表管理 ----------
     @Transactional
     public Scale createScale(ScaleDTO scaleDTO) {
         Scale scale = new Scale();
@@ -37,16 +35,16 @@ public class ScaleService {
         scale.setDescription(scaleDTO.getDescription());
         scale.setInstruction(scaleDTO.getInstruction());
         scale.setDimensionCount(scaleDTO.getDimensionCount());
-        scale.setIsActive(true);
+        scale.setIsActive(scaleDTO.getIsActive() != null ? scaleDTO.getIsActive() : true);
         return scaleRepository.save(scale);
     }
 
-    // 管理员：更新量表基本信息
     @Transactional
     public Scale updateScale(Long id, ScaleDTO scaleDTO) {
         Scale scale = scaleRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("量表不存在"));
         scale.setName(scaleDTO.getName());
+        scale.setCode(scaleDTO.getCode());
         scale.setDescription(scaleDTO.getDescription());
         scale.setInstruction(scaleDTO.getInstruction());
         scale.setDimensionCount(scaleDTO.getDimensionCount());
@@ -54,16 +52,22 @@ public class ScaleService {
         return scaleRepository.save(scale);
     }
 
-    // 管理员：删除量表（逻辑删除，置为不可用）
     @Transactional
     public void deleteScale(Long id) {
         Scale scale = scaleRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("量表不存在"));
+        // 逻辑删除
         scale.setIsActive(false);
         scaleRepository.save(scale);
     }
 
-    // 管理员：添加题目到量表
+    // 管理员获取所有量表（包括未激活）
+    @Transactional(readOnly = true)
+    public Page<ScaleDTO> getAllScales(Pageable pageable) {
+        return scaleRepository.findAll(pageable).map(this::convertToBasicDTO);
+    }
+
+    // ---------- 题目管理 ----------
     @Transactional
     public Question addQuestion(Long scaleId, QuestionDTO questionDTO) {
         Scale scale = scaleRepository.findById(scaleId)
@@ -74,21 +78,9 @@ public class ScaleService {
         question.setDimension(questionDTO.getDimension());
         question.setSortOrder(questionDTO.getSortOrder());
         question = questionRepository.save(question);
-
-        if (questionDTO.getOptions() != null) {
-            for (OptionDTO optDTO : questionDTO.getOptions()) {
-                Option option = new Option();
-                option.setQuestion(question);
-                option.setOptionText(optDTO.getOptionText());
-                option.setScore(optDTO.getScore());
-                option.setSortOrder(optDTO.getSortOrder());
-                optionRepository.save(option);
-            }
-        }
         return question;
     }
 
-    // 管理员：更新题目
     @Transactional
     public Question updateQuestion(Long questionId, QuestionDTO questionDTO) {
         Question question = questionRepository.findById(questionId)
@@ -99,13 +91,12 @@ public class ScaleService {
         return questionRepository.save(question);
     }
 
-    // 管理员：删除题目（级联删除选项）
     @Transactional
     public void deleteQuestion(Long questionId) {
         questionRepository.deleteById(questionId);
     }
 
-    // 管理员：添加选项
+    // ---------- 选项管理 ----------
     @Transactional
     public Option addOption(Long questionId, OptionDTO optionDTO) {
         Question question = questionRepository.findById(questionId)
@@ -118,7 +109,6 @@ public class ScaleService {
         return optionRepository.save(option);
     }
 
-    // 管理员：更新选项
     @Transactional
     public Option updateOption(Long optionId, OptionDTO optionDTO) {
         Option option = optionRepository.findById(optionId)
@@ -129,19 +119,19 @@ public class ScaleService {
         return optionRepository.save(option);
     }
 
-    // 管理员：删除选项
     @Transactional
     public void deleteOption(Long optionId) {
         optionRepository.deleteById(optionId);
     }
 
-    // 用户端：获取所有活跃量表列表（不含题目）
+    // ---------- 用户端 ----------
+    @Transactional(readOnly = true)
     public Page<ScaleDTO> getActiveScales(Pageable pageable) {
         Page<Scale> page = scaleRepository.findByIsActiveTrue(pageable);
         return page.map(this::convertToBasicDTO);
     }
 
-    // 用户端：获取量表详情（含题目和选项）
+    @Transactional(readOnly = true)
     public ScaleDTO getScaleDetail(Long scaleId) {
         Scale scale = scaleRepository.findById(scaleId)
                 .orElseThrow(() -> new RuntimeException("量表不存在"));
@@ -151,6 +141,7 @@ public class ScaleService {
         return convertToDetailDTO(scale);
     }
 
+    // ---------- 辅助转换方法 ----------
     private ScaleDTO convertToBasicDTO(Scale scale) {
         ScaleDTO dto = new ScaleDTO();
         dto.setId(scale.getId());
