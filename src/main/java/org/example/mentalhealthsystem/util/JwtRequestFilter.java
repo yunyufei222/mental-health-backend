@@ -33,7 +33,8 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                 path.startsWith("/api/user/register") ||
                 path.startsWith("/api/articles") ||        // 添加这一行
                 path.startsWith("/api/scales")||
-                path.startsWith("/api/community/posts")) {           // 如果有量表模块也一并放行
+                path.startsWith("/api/community/posts")||
+                path.startsWith("/api/counselors")) {           // 如果有量表模块也一并放行
             chain.doFilter(request, response);
             return;
         }
