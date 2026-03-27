@@ -86,9 +86,13 @@ public class AssessmentService {
         return result;
     }
 
+    /**
+     * 获取用户测评历史（分页，包含详细报告）
+     */
+    @Transactional(readOnly = true)
     public Page<UserAssessmentDTO> getUserAssessmentHistory(Long userId, Pageable pageable) {
         Page<UserAssessment> page = assessmentRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
-        return page.map(this::convertToUserDTO);
+        return page.map(this::convertToUserAssessmentDTO);
     }
 
     @Transactional(readOnly = true)
@@ -101,13 +105,25 @@ public class AssessmentService {
         return convertToResultDTO(assessment);
     }
 
-    private UserAssessmentDTO convertToUserDTO(UserAssessment assessment) {
+    private UserAssessmentDTO convertToUserAssessmentDTO(UserAssessment assessment) {
         UserAssessmentDTO dto = new UserAssessmentDTO();
         dto.setId(assessment.getId());
         dto.setScaleId(assessment.getScale().getId());
         dto.setScaleName(assessment.getScale().getName());
         dto.setTotalScore(assessment.getTotalScore());
+        dto.setInterpretation(assessment.getInterpretation());
         dto.setCreatedAt(assessment.getCreatedAt());
+
+        // 解析维度得分
+        try {
+            if (assessment.getDimensionScores() != null) {
+                Map<String, Integer> dimScores = objectMapper.readValue(assessment.getDimensionScores(),
+                        new TypeReference<Map<String, Integer>>() {});
+                dto.setDimensionScores(dimScores);
+            }
+        } catch (Exception e) {
+            // 忽略解析错误，不设置维度得分
+        }
         return dto;
     }
 
@@ -122,7 +138,8 @@ public class AssessmentService {
         dto.setCreatedAt(assessment.getCreatedAt().toString());
         try {
             if (assessment.getDimensionScores() != null) {
-                Map<String, Integer> dimScores = objectMapper.readValue(assessment.getDimensionScores(), new TypeReference<Map<String, Integer>>() {});
+                Map<String, Integer> dimScores = objectMapper.readValue(assessment.getDimensionScores(),
+                        new TypeReference<Map<String, Integer>>() {});
                 dto.setDimensionScores(dimScores);
             }
         } catch (Exception e) {
@@ -132,11 +149,12 @@ public class AssessmentService {
     }
 
     private String generateInterpretation(Scale scale, int totalScore, Map<String, Integer> dimScores) {
-        if (scale.getId() == 1) { // 繁荣量表
+        // 可根据量表 ID 和分数范围生成详细解读
+        if (scale.getId() == 1L) { // 繁荣量表
             if (totalScore <= 24) return "您的繁荣感较低，可能需要关注心理状态，尝试积极活动。";
             else if (totalScore <= 40) return "您的繁荣感中等，可以继续保持，多参与有意义的事情。";
             else return "您的繁荣感很高，生活充实，请保持！";
-        } else if (scale.getId() == 2) { // VIA量表
+        } else if (scale.getId() == 2L) { // VIA 量表
             StringBuilder sb = new StringBuilder("您的品格优势得分：\n");
             dimScores.forEach((dim, score) -> sb.append(dim).append(": ").append(score).append("\n"));
             return sb.toString();

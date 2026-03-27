@@ -33,6 +33,9 @@ public class AssessmentController {
         return ResponseEntity.ok(result);
     }
 
+    /**
+     * 获取当前用户的测评历史（分页）
+     */
     @GetMapping("/history")
     public ResponseEntity<Page<UserAssessmentDTO>> getMyHistory(
             @RequestParam(defaultValue = "0") int page,
@@ -46,6 +49,9 @@ public class AssessmentController {
         return ResponseEntity.ok(history);
     }
 
+    /**
+     * 获取指定测评记录的详情
+     */
     @GetMapping("/{id}")
     public ResponseEntity<AssessmentResultDTO> getAssessmentResult(
             @PathVariable Long id,
