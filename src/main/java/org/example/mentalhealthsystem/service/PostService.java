@@ -124,17 +124,18 @@ public class PostService {
         return page.map(post -> convertToDTO(post, currentUserId));
     }
 
-    // 获取帖子详情
+    // 获取帖子详情（修正版）
     @Transactional
     public PostDetailDTO getPostDetail(Long postId, Long currentUserId) {
+        // 先增加阅读数（原子操作，不依赖实体管理器）
+        postRepository.incrementViewCount(postId);
+
+        // 重新查询帖子（确保获取最新的 viewCount）
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new RuntimeException("帖子不存在"));
         if (post.getStatus() != 1) {
             throw new RuntimeException("帖子不存在或已删除");
         }
-        // 增加浏览量
-        post.setViewCount(post.getViewCount() + 1);
-        postRepository.save(post);
         return convertToDetailDTO(post, currentUserId);
     }
 

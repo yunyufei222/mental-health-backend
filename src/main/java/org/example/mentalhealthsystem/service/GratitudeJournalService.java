@@ -13,7 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-
+import java.time.YearMonth;
+import java.util.List;
+import java.util.stream.Collectors;
 @Service
 public class GratitudeJournalService {
 
@@ -67,5 +69,17 @@ public class GratitudeJournalService {
         dto.setCreatedAt(journal.getCreatedAt());
         dto.setUpdatedAt(journal.getUpdatedAt());
         return dto;
+    }
+    @Transactional(readOnly = true)
+    public List<GratitudeJournalResponse> getMonthlyJournal(Long userId, int year, int month) {
+        // 计算月份的开始和结束日期
+        YearMonth yearMonth = YearMonth.of(year, month);
+        LocalDate startDate = yearMonth.atDay(1);
+        LocalDate endDate = yearMonth.atEndOfMonth();
+
+        List<GratitudeJournal> journals = journalRepository.findByUserIdAndDateBetween(userId, startDate, endDate);
+        return journals.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
 }

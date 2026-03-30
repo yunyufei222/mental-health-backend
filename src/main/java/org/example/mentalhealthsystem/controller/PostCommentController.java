@@ -1,9 +1,9 @@
 package org.example.mentalhealthsystem.controller;
 
-import org.example.mentalhealthsystem.dto.CommentDTO;
-import org.example.mentalhealthsystem.dto.CommentCreateRequest;
+import org.example.mentalhealthsystem.dto.PostCommentCreateRequest;
+import org.example.mentalhealthsystem.dto.PostCommentDTO;
 import org.example.mentalhealthsystem.entity.User;
-import org.example.mentalhealthsystem.service.CommentService;
+import org.example.mentalhealthsystem.service.PostCommentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -13,72 +13,66 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.Map;
-
 @RestController
-@RequestMapping("/api/articles/{articleId}/comments")
+@RequestMapping("/api/community/posts/{postId}/comments")
 @CrossOrigin(origins = "http://localhost:5174")
-public class CommentController {
+public class PostCommentController {
 
     @Autowired
-    private CommentService commentService;
+    private PostCommentService postCommentService;
 
-    // 获取文章的顶级评论列表（分页，包含回复）
+    // 获取帖子的顶级评论列表（分页）
     @GetMapping
-    public ResponseEntity<Page<CommentDTO>> getComments(
-            @PathVariable Long articleId,
+    public ResponseEntity<Page<PostCommentDTO>> getComments(
+            @PathVariable Long postId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal User currentUser) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Long userId = currentUser != null ? currentUser.getId() : null;
-        Page<CommentDTO> comments = commentService.getTopLevelComments(articleId, pageable, userId);
+        Page<PostCommentDTO> comments = postCommentService.getComments(postId, pageable, userId);
         return ResponseEntity.ok(comments);
-
     }
 
-    // 发表评论（可包含 parentId）
+    // 发表评论（可带 parentId）
     @PostMapping
-    public ResponseEntity<CommentDTO> createComment(
-            @PathVariable Long articleId,
-            @RequestBody CommentCreateRequest request,
+    public ResponseEntity<PostCommentDTO> createComment(
+            @PathVariable Long postId,
+            @RequestBody PostCommentCreateRequest request,
             @AuthenticationPrincipal User currentUser) {
         if (currentUser == null) {
             return ResponseEntity.status(401).build();
         }
-        CommentDTO comment = commentService.createComment(articleId, currentUser.getId(), request);
+        PostCommentDTO comment = postCommentService.createComment(postId, currentUser.getId(), request);
         return ResponseEntity.ok(comment);
     }
 
     // 删除自己的评论
     @DeleteMapping("/{commentId}")
     public ResponseEntity<Void> deleteComment(
-            @PathVariable Long articleId,
+            @PathVariable Long postId,
             @PathVariable Long commentId,
             @AuthenticationPrincipal User currentUser) {
         if (currentUser == null) {
             return ResponseEntity.status(401).build();
         }
-        if (!commentService.isCommentOwner(commentId, currentUser.getId())) {
+        if (!postCommentService.isCommentOwner(commentId, currentUser.getId())) {
             return ResponseEntity.status(403).build();
         }
-        commentService.deleteComment(commentId);
+        postCommentService.deleteComment(commentId);
         return ResponseEntity.ok().build();
     }
 
-    // 点赞/取消点赞评论
+    // 点赞评论（可选，如果后端已实现）
     @PostMapping("/{commentId}/like")
-    public ResponseEntity<Map<String, Object>> toggleLike(
-            @PathVariable Long articleId,
+    public ResponseEntity<Void> likeComment(
+            @PathVariable Long postId,
             @PathVariable Long commentId,
             @AuthenticationPrincipal User currentUser) {
         if (currentUser == null) {
             return ResponseEntity.status(401).build();
         }
-        boolean liked = commentService.toggleLike(commentId, currentUser.getId());
-        Map<String, Object> response = new HashMap<>();
-        response.put("liked", liked);
-        return ResponseEntity.ok(response);
+        postCommentService.toggleLike(commentId, currentUser.getId()); // 需要实现
+        return ResponseEntity.ok().build();
     }
 }

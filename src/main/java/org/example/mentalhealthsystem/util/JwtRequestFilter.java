@@ -29,27 +29,25 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         String path = request.getServletPath();
         System.out.println("JwtRequestFilter processing path: " + path);
-        if (path.startsWith("/api/user/login") ||
-                path.startsWith("/api/user/register") ||
-                path.startsWith("/api/articles") ||        // 添加这一行
-                path.startsWith("/api/scales")||
-                path.startsWith("/api/community/posts")||
-                path.startsWith("/api/counselors")) {           // 如果有量表模块也一并放行
+        if (path.startsWith("/api/user/login") || path.startsWith("/api/user/register")) {
             chain.doFilter(request, response);
             return;
         }
 
         final String authorizationHeader = request.getHeader("Authorization");
+        System.out.println("Authorization header: " + authorizationHeader); // 新增
 
         String username = null;
         String jwt = null;
 
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             jwt = authorizationHeader.substring(7);
+            System.out.println("JWT extracted: " + jwt); // 新增
             try {
                 username = jwtUtil.extractUsername(jwt);
+                System.out.println("Username extracted: " + username); // 新增
             } catch (Exception e) {
-                // token 无效，不设置认证
+                System.out.println("Token parsing error: " + e.getMessage()); // 新增
             }
         }
 
@@ -60,7 +58,12 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                         userDetails, null, userDetails.getAuthorities());
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+                System.out.println("Authentication set for user: " + username); // 新增
+            } else {
+                System.out.println("Token validation failed for user: " + username); // 新增
             }
+        } else {
+            System.out.println("Username is null or authentication already exists"); // 新增
         }
         chain.doFilter(request, response);
     }

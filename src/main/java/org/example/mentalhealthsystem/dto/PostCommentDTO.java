@@ -8,6 +8,8 @@ import java.util.List;
 @Data
 public class PostCommentDTO {
     private Long id;
+    private Long postId;          // 新增
+    private Long parentId;        // 新增
     private Long userId;
     private String username;
     private String nickname;

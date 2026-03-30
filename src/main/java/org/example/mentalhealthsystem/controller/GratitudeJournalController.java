@@ -13,6 +13,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/tools/gratitude")
 @CrossOrigin(origins = "http://localhost:5174")
@@ -55,5 +57,17 @@ public class GratitudeJournalController {
         Pageable pageable = PageRequest.of(page, size, Sort.by("date").descending());
         Page<GratitudeJournalResponse> history = journalService.getHistory(currentUser.getId(), pageable);
         return ResponseEntity.ok(history);
+    }
+    // GratitudeJournalController.java 中添加
+    @GetMapping("/monthly")
+    public ResponseEntity<List<GratitudeJournalResponse>> getMonthly(
+            @RequestParam int year,
+            @RequestParam int month,
+            @AuthenticationPrincipal User currentUser) {
+        if (currentUser == null) {
+            return ResponseEntity.status(401).build();
+        }
+        List<GratitudeJournalResponse> journals = journalService.getMonthlyJournal(currentUser.getId(), year, month);
+        return ResponseEntity.ok(journals);
     }
 }
