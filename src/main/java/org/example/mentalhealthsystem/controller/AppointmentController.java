@@ -13,12 +13,16 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.example.mentalhealthsystem.entity.Role;
+import org.example.mentalhealthsystem.entity.Counselor;
+import org.example.mentalhealthsystem.repository.CounselorRepository;
 
 @RestController
 @RequestMapping("/api/appointments")
 @CrossOrigin(origins = "http://localhost:5174")
 public class AppointmentController {
-
+    @Autowired
+    private CounselorRepository counselorRepository;
     @Autowired
     private AppointmentService appointmentService;
 
@@ -54,5 +58,22 @@ public class AppointmentController {
         }
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         return ResponseEntity.ok(appointmentService.getUserAppointments(currentUser.getId(), pageable));
+    }
+    @GetMapping("/counselor/my")
+    public ResponseEntity<Page<AppointmentDTO>> getMyCounselorAppointments(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal User currentUser) {
+        if (currentUser == null) {
+            return ResponseEntity.status(401).build();
+        }
+        if (currentUser.getRole() != Role.COUNSELOR) {
+            return ResponseEntity.status(403).build();
+        }
+        Counselor counselor = counselorRepository.findByUserId(currentUser.getId())
+                .orElseThrow(() -> new RuntimeException("咨询师资料不存在"));
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<AppointmentDTO> appointments = appointmentService.getCounselorAppointmentsByCounselorId(counselor.getId(), pageable);
+        return ResponseEntity.ok(appointments);
     }
 }

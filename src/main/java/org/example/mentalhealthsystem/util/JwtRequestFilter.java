@@ -29,11 +29,9 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         String path = request.getServletPath();
         System.out.println("JwtRequestFilter processing path: " + path);
-        if (path.startsWith("/api/user/login") ||
-                path.startsWith("/api/user/register") ||
-                path.startsWith("/api/articles") ||        // 添加这一行
-                path.startsWith("/api/scales")||
-                path.startsWith("/api/community/posts")) {           // 如果有量表模块也一并放行
+
+        // 只放行登录注册，其他所有请求都进行 token 解析
+        if (path.startsWith("/api/user/login") || path.startsWith("/api/user/register")) {
             chain.doFilter(request, response);
             return;
         }
@@ -47,8 +45,9 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             jwt = authorizationHeader.substring(7);
             try {
                 username = jwtUtil.extractUsername(jwt);
+                System.out.println("Username extracted: " + username);
             } catch (Exception e) {
-                // token 无效，不设置认证
+                System.out.println("Token parsing error: " + e.getMessage());
             }
         }
 
@@ -59,7 +58,12 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                         userDetails, null, userDetails.getAuthorities());
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+                System.out.println("Authentication set for user: " + username);
+            } else {
+                System.out.println("Token validation failed for user: " + username);
             }
+        } else {
+            System.out.println("Username is null or authentication already exists");
         }
         chain.doFilter(request, response);
     }

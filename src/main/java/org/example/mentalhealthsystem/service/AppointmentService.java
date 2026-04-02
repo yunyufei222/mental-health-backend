@@ -156,6 +156,12 @@ public class AppointmentService {
         return page.map(this::convertToDTO);
     }
 
+    @Transactional(readOnly = true)
+    public Page<AppointmentDTO> getCounselorAppointmentsByCounselorId(Long counselorId, Pageable pageable) {
+        Page<Appointment> page = appointmentRepository.findByCounselorIdOrderByCreatedAtDesc(counselorId, pageable);
+        return page.map(this::convertToDTO);
+    }
+
     private AppointmentDTO convertToDTO(Appointment appointment) {
         AppointmentDTO dto = new AppointmentDTO();
         dto.setId(appointment.getId());

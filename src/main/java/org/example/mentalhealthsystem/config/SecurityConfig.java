@@ -38,15 +38,30 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+                        // 公开的 GET 请求
                         .requestMatchers(HttpMethod.GET, "/api/articles/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/scales/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/counselors/**").permitAll()      // 咨询师列表和排班查询
+                        .requestMatchers(HttpMethod.GET, "/api/community/posts/**").permitAll() // 帖子列表、详情、评论列表
+
+                        // 登录注册完全公开
                         .requestMatchers("/api/user/register", "/api/user/login").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/community/posts").permitAll() // 允许未登录浏览帖子
-                        .requestMatchers(HttpMethod.GET, "/api/community/posts/**").permitAll()
-                        .requestMatchers("/api/community/**").authenticated() // 其他操作需登录
-                        .requestMatchers(HttpMethod.GET, "/api/community/posts/**").permitAll()
+
+                        // 社区写操作（发帖、评论、点赞等）需要登录（任何角色）
+                        .requestMatchers(HttpMethod.POST, "/api/community/posts/**").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/community/posts/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/community/posts/**").authenticated()
+                        .requestMatchers("/api/community/**").authenticated()
+
+                        // 学习记录、预约等需要登录
+                        .requestMatchers("/api/user/reads/**").authenticated()
+                        .requestMatchers("/api/appointments/**").authenticated()
+
+                        // 管理员专用
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
+                        // 其他请求默认需要认证
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

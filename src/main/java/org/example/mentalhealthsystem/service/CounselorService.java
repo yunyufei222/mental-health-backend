@@ -1,6 +1,8 @@
 package org.example.mentalhealthsystem.service;
 
 import org.example.mentalhealthsystem.dto.CounselorDTO;
+import org.example.mentalhealthsystem.dto.CounselorScheduleCreateRequest;
+import org.example.mentalhealthsystem.dto.CounselorScheduleDTO;
 import org.example.mentalhealthsystem.dto.ScheduleDTO;
 import org.example.mentalhealthsystem.entity.Counselor;
 import org.example.mentalhealthsystem.entity.CounselorSchedule;
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -48,6 +51,58 @@ public class CounselorService {
                 .map(this::convertToScheduleDTO)
                 .collect(Collectors.toList());
     }
+    private CounselorScheduleDTO convertToCounselorScheduleDTO(CounselorSchedule schedule) {
+        CounselorScheduleDTO dto = new CounselorScheduleDTO();
+        dto.setId(schedule.getId());
+        dto.setDate(schedule.getDate());
+        dto.setStartTime(schedule.getStartTime());
+        dto.setEndTime(schedule.getEndTime());
+        dto.setIsBooked(schedule.getIsBooked());
+        return dto;
+    }
+    @Transactional(readOnly = true)
+    public List<CounselorScheduleDTO> getCounselorSchedules(Long counselorId) {
+        Counselor counselor = counselorRepository.findById(counselorId)
+                .orElseThrow(() -> new RuntimeException("咨询师不存在"));
+        List<CounselorSchedule> schedules = scheduleRepository.findByCounselorOrderByDateAscStartTimeAsc(counselor);
+        return schedules.stream()
+                .map(this::convertToCounselorScheduleDTO)   // 修改此处
+                .collect(Collectors.toList());
+    }
+    // 新增：咨询师添加排班
+    @Transactional
+    public CounselorSchedule addSchedule(Long counselorId, CounselorScheduleCreateRequest request) {
+        Counselor counselor = counselorRepository.findById(counselorId)
+                .orElseThrow(() -> new RuntimeException("咨询师不存在"));
+        if (counselor.getStatus() != 1) {
+            throw new RuntimeException("咨询师状态异常");
+        }
+
+        LocalDate date = request.getDate();
+        LocalTime start = request.getStartTime();
+        LocalTime end = request.getEndTime();
+
+        if (date.isBefore(LocalDate.now())) {
+            throw new RuntimeException("不能添加过去的日期");
+        }
+        if (start.isAfter(end) || start.equals(end)) {
+            throw new RuntimeException("结束时间必须晚于开始时间");
+        }
+
+        boolean exists = scheduleRepository.existsByCounselorIdAndDateAndStartTime(counselorId, date, start);
+        if (exists) {
+            throw new RuntimeException("该时段已存在排班");
+        }
+
+        CounselorSchedule schedule = new CounselorSchedule();
+        schedule.setCounselor(counselor);
+        schedule.setDate(date);
+        schedule.setStartTime(start);
+        schedule.setEndTime(end);
+        schedule.setIsBooked(false);
+        return scheduleRepository.save(schedule);
+    }
+
 
     private CounselorDTO convertToDTO(Counselor counselor) {
         CounselorDTO dto = new CounselorDTO();
