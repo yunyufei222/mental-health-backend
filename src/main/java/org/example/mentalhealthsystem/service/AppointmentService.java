@@ -179,4 +179,19 @@ public class AppointmentService {
         dto.setCreatedAt(appointment.getCreatedAt());
         return dto;
     }
+    @Transactional
+    public Appointment confirmAppointmentByCounselor(Long appointmentId, Long counselorId) {
+        Appointment appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new RuntimeException("预约不存在"));
+        if (!appointment.getCounselor().getId().equals(counselorId)) {
+            throw new RuntimeException("无权操作其他咨询师的预约");
+        }
+        if (appointment.getStatus() != Appointment.AppointmentStatus.PENDING) {
+            throw new RuntimeException("只有待确认的预约才能确认");
+        }
+        // 更新预约状态
+        appointment.setStatus(Appointment.AppointmentStatus.CONFIRMED);
+        // 排班已在创建预约时标记为已预约，无需再次检查或修改
+        return appointmentRepository.save(appointment);
+    }
 }

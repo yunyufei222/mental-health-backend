@@ -17,6 +17,9 @@ import org.example.mentalhealthsystem.entity.Role;
 import org.example.mentalhealthsystem.entity.Counselor;
 import org.example.mentalhealthsystem.repository.CounselorRepository;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/appointments")
 @CrossOrigin(origins = "http://localhost:5174")
@@ -25,7 +28,6 @@ public class AppointmentController {
     private CounselorRepository counselorRepository;
     @Autowired
     private AppointmentService appointmentService;
-
     @PostMapping
     public ResponseEntity<Appointment> createAppointment(
             @RequestBody AppointmentRequest request,
@@ -58,6 +60,22 @@ public class AppointmentController {
         }
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         return ResponseEntity.ok(appointmentService.getUserAppointments(currentUser.getId(), pageable));
+    }
+    @PutMapping("/{id}/confirm")
+    public ResponseEntity<Map<String, Object>> confirmAppointmentByCounselor(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser) {
+        if (currentUser == null || currentUser.getRole() != Role.COUNSELOR) {
+            return ResponseEntity.status(403).build();
+        }
+        Counselor counselor = counselorRepository.findByUserId(currentUser.getId())
+                .orElseThrow(() -> new RuntimeException("咨询师资料不存在"));
+        Appointment appointment = appointmentService.confirmAppointmentByCounselor(id, counselor.getId());
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "预约已确认");
+        response.put("appointment", appointment);
+        return ResponseEntity.ok(response);
     }
     @GetMapping("/counselor/my")
     public ResponseEntity<Page<AppointmentDTO>> getMyCounselorAppointments(
